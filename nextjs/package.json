@@ -55,7 +55,7 @@
     "knip": "^6.17.1",
     "msw": "^2.14.6",
     "prettier": "^3.8.4",
-    "supabase": "^2.108.0",
+    "supabase": "^2.122.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9"
