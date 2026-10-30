@@ -1,0 +1,321 @@
+"use client";
+
+import { useState, useEffect, useCallback, startTransition } from "react";
+import { Languages, Loader2, ChevronDown } from "lucide-react";
+import {
+  AppLanguage,
+  NormExplanation,
+  ChatSettings,
+  DEFAULT_CHAT_SETTINGS,
+  LANGUAGE_NAMES,
+} from "../lib/types";
+import { toast } from "sonner";
+import { FeatureGate } from "./feature-gate";
+import { useLanguage } from "../hooks/useLanguage";
+
+const STORAGE_KEY = "glv_chat_settings";
+
+interface NormViewerProps {
+  normId: string;
+  lawKey: string;
+  title: string;
+  content: string;
+}
+
+export default function NormViewer({
+  normId,
+  lawKey,
+  title,
+  content,
+}: NormViewerProps) {
+  const { t } = useLanguage();
+  const [expanded, setExpanded] = useState(false);
+  const [explanation, setExplanation] = useState<NormExplanation | null>(null);
+  const [explaining, setExplaining] = useState(false);
+  const [showGerman, setShowGerman] = useState(true);
+  const [settings, setSettings] = useState<ChatSettings>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        return { ...DEFAULT_CHAT_SETTINGS, ...JSON.parse(raw) };
+      }
+    } catch {}
+    return DEFAULT_CHAT_SETTINGS;
+  });
+  const { mode, language: langSetting, ollamaUrl, ollamaParams } = settings;
+  const fetchExplanation = useCallback(async () => {
+    if (explanation || explaining) return;
+
+    // BASIC MODE does not support translation — show a clear message
+    if (mode === "basic") {
+      toast.error(
+        "Translation requires Local AI mode. Switch modes in Settings.",
+      );
+      return;
+    }
+
+    setExplaining(true);
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          normId,
+          lawKey,
+          lawTitle: title,
+          content,
+          lang: langSetting,
+          brokerUrl: ollamaUrl,
+        }),
+      });
+      if (!res.ok) throw new Error("Explanation failed");
+      const data = (await res.json()) as NormExplanation;
+      setExplanation(data);
+    } catch (err) {
+      console.error("Norm explain failed:", err);
+      toast.error(
+        "Local AI unavailable. Ensure Ollama is running (ollama serve) and check the broker URL in Settings.",
+      );
+    } finally {
+      setExplaining(false);
+    }
+  }, [
+    explanation,
+    explaining,
+    mode,
+    langSetting,
+    ollamaUrl,
+    normId,
+    lawKey,
+    title,
+    content,
+  ]);
+
+  // Auto-fetch translation when section is expanded and AI mode is active
+  // Basic mode is excluded because it does not support translation
+  useEffect(() => {
+    if (expanded && mode !== "basic" && !explanation && !explaining) {
+      fetchExplanation();
+    }
+  }, [expanded, mode, explanation, explaining, fetchExplanation]);
+
+  return (
+    <div className="premium-card overflow-hidden mb-6 group/norm border-white/5 bg-zinc-950/20 edge-glow-electric">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-8 text-left hover:bg-white/[0.01] transition-all duration-500 relative"
+      >
+        <div className="flex-1">
+          <span className="text-accent-gold-body font-black mr-6 text-xs tracking-[0.3em] uppercase opacity-60">
+            {t("norm.section", { id: normId })}
+          </span>
+          <span className="font-serif font-bold text-white text-xl tracking-tight">
+            {title}
+          </span>
+        </div>
+        <div className="flex items-center gap-6">
+          <div
+            className={`p-2 transition-transform duration-500 ${expanded ? "rotate-180" : ""}`}
+          >
+            <ChevronDown className="w-5 h-5 text-zinc-700 group-hover/norm:text-accent-gold-bright transition-colors" />
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="p-8 pt-0 animate-in slide-in-from-top-4 duration-500">
+          <div className="h-px w-full bg-white/5 mb-8" />
+
+          {(function renderContent() {
+            const hasTranslation =
+              explanation?.translation &&
+              explanation.translation !== content &&
+              /* skip bracketed fallback — e.g. "[§ 123 BGB]" when no API key */
+              explanation.translation !== `[${content}]`;
+
+            const isFallback =
+              !!explanation?.translation &&
+              explanation.translation !== content &&
+              explanation.translation === `[${content}]`;
+
+            /* Check if the API returned an error message in summary */
+            const isUnavailable =
+              !explanation?.translation &&
+              explanation?.summary &&
+              explanation.summary.length > 5;
+
+            /* per-mode explaining message — shows which AI is translating, in green */
+            function explainingPill() {
+              const thinkingDots = (
+                <span className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold/40" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-gold/60" />
+                  </span>
+                  <span className="font-mono tracking-wider">
+                    Thinking
+                    <span className="inline-flex overflow-hidden ml-0.5">
+                      <span className="animate-[bounce_1.4s_infinite_0ms]">
+                        .
+                      </span>
+                      <span className="animate-[bounce_1.4s_infinite_200ms]">
+                        .
+                      </span>
+                      <span className="animate-[bounce_1.4s_infinite_400ms]">
+                        .
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              );
+
+              /* green active text for all AI modes */
+              const modeName = (() => {
+                switch (settings.mode) {
+                  case "local":
+                    return t("norm.translating_local");
+                  default:
+                    // Basic mode never reaches this function (fetchExplanation returns early)
+                    return null;
+                }
+              })();
+
+              /* Only render the pill if we have a mode name to display */
+              if (!modeName) return null;
+
+              return (
+                <span className="text-xs font-black uppercase tracking-widest text-green-400/80 flex items-center gap-2">
+                  {thinkingDots}
+                  {modeName}
+                </span>
+              );
+            }
+
+            return (
+              <div className="legal-text whitespace-pre-wrap bg-white/[0.01] p-10 border border-white/5 relative">
+                <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-white/10" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-white/10" />
+
+                {/* Language badge + toggle */}
+                <div className="flex items-center justify-between mb-6 min-h-5">
+                  {showGerman ? (
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-600">
+                      {t("norm.german_original")}
+                    </span>
+                  ) : isFallback ? (
+                    <span className="text-xs font-black uppercase tracking-widest text-amber-600/60 flex items-center gap-2">
+                      {t("norm.translation_unavailable")}
+                    </span>
+                  ) : isUnavailable ? (
+                    <span className="text-xs font-black uppercase tracking-widest text-red-500/60 flex items-center gap-2">
+                      AI Unavailable
+                    </span>
+                  ) : hasTranslation ? (
+                    <span className="text-xs font-black uppercase tracking-widest text-accent-gold/60">
+                      Translated to{" "}
+                      {LANGUAGE_NAMES[settings.language] || "English"}
+                    </span>
+                  ) : explaining ? (
+                    explainingPill()
+                  ) : null}
+
+                  {hasTranslation && (
+                    <button
+                      onClick={() => setShowGerman(!showGerman)}
+                      className="text-xs font-black uppercase tracking-widest text-zinc-700 hover:text-accent-gold transition-colors active:scale-95"
+                    >
+                      {showGerman
+                        ? t("norm.show_translation")
+                        : t("norm.show_german")}
+                    </button>
+                  )}
+                </div>
+
+                {/* Content */}
+                <p
+                  className={
+                    showGerman || !hasTranslation
+                      ? "text-zinc-500 font-serif italic leading-relaxed"
+                      : "text-zinc-200 font-sans font-medium leading-relaxed"
+                  }
+                >
+                  {showGerman || isFallback
+                    ? content
+                    : isUnavailable
+                      ? explanation!.summary
+                      : hasTranslation
+                        ? explanation!.translation
+                        : content}
+                </p>
+              </div>
+            );
+          })()}
+
+          <div className="mt-12">
+            {!explanation ? (
+              <div className="flex items-center gap-4 monumental-type opacity-40">
+                {explaining ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold/40" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-gold/60" />
+                    </span>
+                    <span className="text-sm font-mono tracking-wider">
+                      Thinking
+                      <span className="inline-flex overflow-hidden ml-0.5">
+                        <span className="animate-[bounce_1.4s_infinite_0ms]">
+                          .
+                        </span>
+                        <span className="animate-[bounce_1.4s_infinite_200ms]">
+                          .
+                        </span>
+                        <span className="animate-[bounce_1.4s_infinite_400ms]">
+                          .
+                        </span>
+                      </span>
+                    </span>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => fetchExplanation()}
+                    className="flex items-center gap-4 opacity-40 hover:opacity-100 hover:text-accent-gold transition-all duration-500 group/btn active:scale-95"
+                  >
+                    <Languages className="w-4 h-4 group-hover/btn:rotate-12 transition-transform" />
+                    <span>
+                      {t("norm.translate", {
+                        lang: LANGUAGE_NAMES[settings.language] || "English",
+                      })}
+                    </span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-10 animate-fade-in">
+                {/* Translation */}
+                <div className="p-8 glass-panel border-accent-gold/10 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-accent-gold-bright opacity-40" />
+                  <div className="flex items-center gap-3 monumental-type mb-6 opacity-60">
+                    <Languages className="w-3.5 h-3.5" />
+                    {explanation.is_official
+                      ? t("norm.translation_official")
+                      : t("norm.translation_ai")}
+                  </div>
+                  <p className="legal-text text-white font-sans font-medium leading-relaxed">
+                    {explanation.translation}
+                  </p>
+                </div>
+
+                {/* Disclaimer */}
+                <div className="flex justify-center">
+                  <p className="text-xs font-black uppercase tracking-[0.4em] text-zinc-700 italic border-y border-white/5 py-4 px-10">
+                    {t("norm.disclaimer")}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

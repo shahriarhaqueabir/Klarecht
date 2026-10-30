@@ -1,0 +1,349 @@
+# =============================================================================
+# German Law Vault - Git Ignore Configuration
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+.zed/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Project Generated Data (Large, regenerable)
+# -----------------------------------------------------------------------------
+# Raw downloaded XML files (can be re-downloaded)
+de_federal_raw/
+
+# Processed JSON law files (can be regenerated)
+de_federal_json/
+
+# Translation output directories
+de_federal_translations/
+
+# Search index (auto-generated on startup)
+search_index.json
+
+# Translation caches
+ai_translations.json
+translation_cache.json
+
+# Knowledge graph output (regenerable via graphify tool)
+graphify-out/
+
+# Vector embedding cache (regenerable, ~160MB)
+scripts/norms_vectors.npy
+*.npy
+
+# Law view counts and analytics
+law_view_counts.json
+
+# Test output files
+translation_test.json
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+*.log
+Logs/
+logs/
+
+# -----------------------------------------------------------------------------
+# Environment & Secrets
+# -----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
+
+# Recovery, temporary scripts, and indexing artifacts
+scripts/_reindex_status.json
+scripts/reindex.log
+extract_*.py
+app_from_pyc.py
+app_recovered*.py
+laws_metadata.*
+*.jsonl
+*.bak
+*.tmp
+
+# Event configuration (AWS Lambda, etc.)
+event.json
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+dictionary/*.db
+
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# -----------------------------------------------------------------------------
+# Build & Test Artifacts
+# -----------------------------------------------------------------------------
+# Coverage reports
+coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+
+# Test results
+test_results*.txt
+.pytest_cache/
+.tox/
+
+# Examples and temporary output
+examples/
+*.zip
+
+# -----------------------------------------------------------------------------
+# Notebook & Documentation Build
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# -----------------------------------------------------------------------------
+# Archived legacy code (not part of the app)
+# -----------------------------------------------------------------------------
+_archive/
+Documentation and AI Instructions/
+
+# Additional backup folders
+# -----------------------------------------------------------------------------
+*_backup/
+*.backup
+
+# -----------------------------------------------------------------------------
+# LibreTranslate (submodule - only keep if actively used)
+# -----------------------------------------------------------------------------
+LibreTranslate-main/
+
+# -----------------------------------------------------------------------------
+# Certificates & Keys (never commit secrets)
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# -----------------------------------------------------------------------------
+# Keep this file
+# -----------------------------------------------------------------------------
+!.gitignore
+
+# Worktrees
+.worktrees/
+worktrees/
+.vercel
+.env*
+
+# Internal agent memory, planning, and skill configs (not for public repo)
+.memory/
+plans/
+docs/superpowers/
+.agents/
+
+# Local-only agent config (not pushed to GitHub)
+.githooks/
+
+# Secret pattern reference files (gitleaks false positives)
+secret_patterns.txt
+
+# Root-level junk (deployment artifacts, one-off scripts, legacy launchers)
+_check_content.py
+dedupe_processed_data.py
+deploy2.json
+deploy_status.json
+deploys.json
+run_dashboard.bat
+search_result.json
+view_logs.ps1
+docker-compose.yml
+
+# Playwright MCP artifacts (generated by browser automation)
+.playwright-mcp/
+
+# =============================================================================
+# Safety Patterns — local dev, testing, and agent artifacts
+# =============================================================================
+
+# Local-only override files (configs, patches, overrides)
+*.local
+
+# dotenvx encryption keys
+.env.keys
+
+# One-off Vercel deploy / hero scripts
+hero.*
+
+# Ad-hoc test scripts at project root
+test_*.py
+_test_*.py
+
+# pnpm debug logs
+.pnpm-debug.log*
+
+# TypeScript incremental build info at root level
+tsconfig.tsbuildinfo
+
+# Chrome DevTools heap snapshots
+*.heapsnapshot
+
+# Screenshot files taken during testing / debugging
+*.screenshot.*
+
+# Generic temp directories
+tmp/
+temp/
+TMP/
+
+# Local experimentation / scratch dirs
+scratch/
+sandbox/
+
+# Personal notes and planning files (agent-generated)
+todo*
+notes*
+ideas*
+
+# Agent output artifacts
+agent-output*
+
+# Playwright test results (generated by E2E tests)
+test-results/
+**/test-results/
+
+# Feature test / debug output directories
+outputs/
+**/outputs/
+
+# Root-level screenshots (ad-hoc captures)
+*_home.png
+*_manual.png
+
+# Gitleaks security scan reports
+gitleaks-report*
+
+# Agent-specific documentation (not for public repo)
+docs/superpowers/
+
+# Local model configuration files
+Modelfile*
+hf-transformers-models.md
+
+# Agent config files (not for public repo)
+CLAUDE.md
+
+# Agent plan ignores
+.gitignore_plans
+
+# Legacy Python test suite (project migrated to Vitest)
+tests/
+
+# One-time maintenance scripts (not part of the active app)
+nextjs/scripts/sync-qdrant-categories*
+nextjs/scripts/verify-qdrant-categories*
+nextjs/scripts/export-laws.*
+
+# Data exports and ad-hoc scripts (regenerable)
+nextjs/laws.json
+nextjs/laws.csv
+nextjs/laws_raw.txt
+nextjs/laws_export_err.txt
+nextjs/tmp_*
+nextjs/sql/
+supabase/_*.sql
+supabase/_*.js
+
+# One-off ad-hoc SQL scripts (not part of migration chain)
+supabase/_verify.sql
+supabase/_phase2_remaining.sql
+
+# Windows null devices
+NUL
+nul
+
+.vercel
+.env*
+
+# SQLite WAL files
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal
