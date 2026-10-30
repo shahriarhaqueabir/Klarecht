@@ -28,20 +28,21 @@ German Law Vault provides a comprehensive search engine and AI-guided legal assi
 
 - Node.js 18+
 - Python 3.10+
-- [Ollama](https://ollama.com) installed and running
+- llama.cpp CUDA
 
 ### Setup
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/German-Law-Vault.git
+git clone https://github.com/shahriarhaqueabir/Germa.git
 cd German-Law-Vault
 
 # 2. Install Node dependencies
 cd nextjs && npm install
 
-# 3. Pull Ollama models
-ollama pull nomic-embed-text:latest
+# 3. Pull local models
+A main model for conversation and assistance
+B secondary model for embedding
 
 # 4. Configure
 cp .env.example .env.local
@@ -63,9 +64,9 @@ python scripts/ingest_embeddings.py
 cd nextjs && npm run dev  # → http://localhost:3000
 ```
 
-### Ollama Setup
+### LLM Setup
 
-The app auto-detects available models from your Ollama instance. Recommended:
+The app auto-detects available models. Recommended:
 
 - **Chat/Guidance**: Any 7B+ model (Qwythos 9B, Llama 3, Mistral, etc.)
 - **Embeddings**: `nomic-embed-text` (required for semantic search)
@@ -76,7 +77,7 @@ If your models are in a non-default directory:
 ```bash
 # Windows
 [System.Environment]::SetEnvironmentVariable("OLLAMA_MODELS", "E:\path\to\models", "User")
-# Then restart Ollama
+# Then restart
 ```
 
 ## Tech Stack
@@ -111,33 +112,8 @@ npm run lint             # ESLint
 - **Know Your Rights Guides** — 5 curated guides (police, rent, employment, consumer, traffic)
 - **Bookmarks & Folders** — Save laws to case folders with 8 uniform properties
 - **9-Language UI** — Full i18n support
-- **Auto-detect models** — App queries Ollama and picks best model per role
+- **Auto-detect models** — App queries llama.cpp and picks best model per role
 - **System Status** — Shows DB stats, embedding progress, Ollama health
-
-## What Needs Work 🔧
-
-### High Priority
-
-- **Embedding ingest** — 26,750 / 107,864 norms embedded (running in background, resumable). Semantic search improves as embeddings complete.
-- **German stemming** — FTS5 trigram handles substring matching but not morphological stemming. Consider trigram + Ollama query expansion.
-- **Rights guides legal accuracy** — 5 guides drafted, need review by someone familiar with German law
-- **Settings page polish** — still has some stale layout from cloud era
-- **Onboarding wizard** — needs updating for local-only setup
-
-### Medium Priority
-
-- **More rights guides** — family, immigration, healthcare, tax, neighbor disputes
-- **Model management UI** — show active model, allow switching, show VRAM usage
-- **Error handling** — graceful degradation when Ollama is down
-- **Progress indicators** — for embedding ingest, guidance generation
-- **README accuracy** — needs ongoing updates as features change
-
-### Low Priority
-
-- **Auto-pull models** — offer to pull missing models from the UI
-- **Export/backup** — backup SQLite DB, export bookmarks as JSON
-- **Dark/light theme** — currently dark only
-- **Keyboard shortcuts** — for search, chat, navigation
 
 ## Architecture
 
