@@ -1,4 +1,4 @@
-# German Law Vault ⚖️ — Local Edition
+# Germa ⚖️ — A German Law Vault. Local Edition
 
 **6,000+ German Federal Laws — AI-Guided Legal Analysis & Semantic Search (100% Local)**
 
