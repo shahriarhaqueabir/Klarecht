@@ -35,7 +35,7 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^16.2.9",
+    "@next/bundle-analyzer": "^16.4.3",
     "@playwright/test": "^1.61.1",
     "@swc/helpers": "^0.5.23",
     "@tailwindcss/postcss": "^4",
