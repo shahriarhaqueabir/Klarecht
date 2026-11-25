@@ -22,9 +22,14 @@ const GGUF_MAGIC = Buffer.from("GGUF"); // GGUF file magic bytes
 
 // SHA256 checksums for catalog models (verified at download time)
 const MODEL_CHECKSUMS: Record<string, string> = {
-  // These should be populated with actual SHA256 hashes from HuggingFace
-  // Format: modelId -> sha256 hex string
-  // Example: "gemma-4-e2b": "abc123..."
+  // SHA256 hashes computed from actual model files
+  // Run: python scripts/compute_checksums.py --models-dir <path>
+  "gemma-4-e2b": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+  "nomic-embed": "021059cce659fe7f9170d5599761d7bbaf644b798dab9503aca30dc43e6beb14",
+  // Note: qwen-3.8b-9b and qwythos-9b checksums are for local files only
+  // Their HuggingFace URLs may have different hashes — verify after download
+  "qwen-3.8b-9b": "df13d66021cef676f82be74053220fd75af6bf2a6a7fb77f5222ab9e50744a7a",
+  "qwythos-9b": "5c09e7f207d2fd9069c802ff77632fa7cdaffe7fb5ba40ff9f060aaeaa09acd5",
 };
 
 // ── Validation helpers ─────────────────────────────────────────────────────────
@@ -93,6 +98,81 @@ function auditLog(modelId: string, ip: string, success: boolean, detail: string)
   }
 }
 
+// Download history: track successful downloads to prevent redundant re-downloads
+function recordDownloadHistory(modelId: string, filename: string, sha256: string, bytes: number) {
+  try {
+    const historyPath = path.join(process.cwd(), "data", "download-history.jsonl");
+    const dir = path.dirname(historyPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const entry = {
+      ts: new Date().toISOString(),
+      modelId,
+      filename,
+      sha256,
+      bytes,
+      action: "downloaded",
+    };
+    fs.appendFileSync(historyPath, JSON.stringify(entry) + "\\n");
+  } catch {
+    // History tracking must never crash the download
+  }
+}
+
+function getDownloadHistory(): Record<string, { sha256: string; ts: string }> {
+  const history: Record<string, { sha256: string; ts: string }> = {};
+  try {
+    const historyPath = path.join(process.cwd(), "data", "download-history.jsonl");
+    if (!fs.existsSync(historyPath)) return history;
+    const lines = fs.readFileSync(historyPath, "utf-8").split("\\n").filter(Boolean);
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.modelId && entry.sha256) {
+          history[entry.modelId] = { sha256: entry.sha256, ts: entry.ts };
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+  } catch {
+    // Return empty history on error
+  }
+  return history;
+}
+
+// Process exit handler: clean up .tmp files on crash
+function cleanupTmpFiles() {
+  try {
+    const modelsDir = path.join(process.cwd(), "data", "models");
+    if (!fs.existsSync(modelsDir)) return;
+    const files = fs.readdirSync(modelsDir);
+    for (const file of files) {
+      if (file.endsWith(".tmp")) {
+        try {
+          fs.unlinkSync(path.join(modelsDir, file));
+          console.log(`[CLEANUP] Removed temp file: ${file}`);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  } catch {
+    // Cleanup must never crash
+  }
+}
+
+// Register cleanup on process exit
+if (typeof process !== "undefined") {
+  process.on("exit", cleanupTmpFiles);
+  process.on("SIGINT", () => { cleanupTmpFiles(); process.exit(0); });
+  process.on("SIGTERM", () => { cleanupTmpFiles(); process.exit(0); });
+  process.on("uncaughtException", (err) => {
+    console.error("[FATAL]", err);
+    cleanupTmpFiles();
+    process.exit(1);
+  });
+}
+
 export async function POST(req: NextRequest) {
   // Rate limiting
   const ip =
@@ -145,9 +225,24 @@ export async function POST(req: NextRequest) {
     if (isModelDownloaded(model.filename)) {
       // Verify existing file is valid GGUF
       if (!validateGgufFile(destPath)) {
-        // Corrupt file — delete and re-download
+        // Corrupt file - delete and re-download
         fs.unlinkSync(destPath);
       } else {
+        // Check download history for checksum match (prevent redundant re-downloads)
+        const history = getDownloadHistory();
+        const histEntry = history[model.id];
+        if (histEntry) {
+          const currentChecksum = computeSha256(destPath);
+          if (currentChecksum === histEntry.sha256) {
+            auditLog(model.id, ip, true, "Already downloaded (checksum match, skipped)");
+            return NextResponse.json({
+              status: "already_downloaded",
+              path: destPath,
+              progress: 100,
+              skipped: true,
+            });
+          }
+        }
         return NextResponse.json({
           status: "already_downloaded",
           path: destPath,
@@ -292,6 +387,10 @@ export async function POST(req: NextRequest) {
 
           // 9. Atomic rename: move validated .tmp to final path
           fs.renameSync(tmpPath, destPath);
+
+          // 9a. Record download history
+          const fileSha256 = computeSha256(destPath);
+          recordDownloadHistory(model.id, model.filename, fileSha256, downloadedBytes);
 
           // 9b. File permission lockdown (no execute bit)
           try {
