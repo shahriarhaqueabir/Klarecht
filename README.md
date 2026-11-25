@@ -176,7 +176,7 @@ ollama pull qwen2.5:1.5b-translate
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/German-Law-Vault.git
+git clone https://github.com/shahriarhaqueabir/Klarecht.git
 cd German-Law-Vault
 
 # 2. Install
@@ -256,7 +256,6 @@ German-Law-Vault/
 
 | View 1 | View 2 | View 3 |
 |---|---|---|
-| ![screenshot 1](docs/screenshots/1.png) | ![screenshot 2](docs/screenshots/2.png) | ![screenshot 3](docs/screenshots/3.png) |
 
 > Add your own screenshots under docs/screenshots/.
 
