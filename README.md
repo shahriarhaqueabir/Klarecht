@@ -3,6 +3,7 @@
 <p align="center">
   <img src="Klarecht.jpg" alt="Klarecht" width="400">
 </p>
+
 > **6,000+ German Federal Laws — AI-Guided Legal Analysis & Semantic Search,
 > 100% Local.** Everything runs on your machine: no cloud, no API keys, no data
 > leaves your computer. 🛡️
