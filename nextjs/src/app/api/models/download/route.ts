@@ -1,14 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 import {
   MODEL_CATALOG,
   getModelPath,
   isModelDownloaded,
   saveConfig,
 } from "@/lib/model-manager";
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
 
+// Process exit handler: clean up .tmp files on crash
+if (typeof process !== "undefined") {
+  const cleanupTmpFiles = () => {
+    try {
+      const modelsDir = path.join(process.cwd(), "data", "models");
+      if (!fs.existsSync(modelsDir)) return;
+      const files = fs.readdirSync(modelsDir);
+      for (const file of files) {
+        if (file.endsWith(".tmp")) {
+          try {
+            fs.unlinkSync(path.join(modelsDir, file));
+            console.log(`[CLEANUP] Removed temp file: ${file}`);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+      }
+    } catch {
+      // Cleanup must never crash
+    }
+  };
+  process.on("exit", cleanupTmpFiles);
+  process.on("SIGINT", () => { cleanupTmpFiles(); process.exit(0); });
+  process.on("SIGTERM", () => { cleanupTmpFiles(); process.exit(0); });
+  process.on("uncaughtException", (err) => {
+    console.error("[FATAL]", err);
+    cleanupTmpFiles();
+    process.exit(1);
+  });
+}
 // ── Security constants ─────────────────────────────────────────────────────────
 
 const ALLOWED_DOWNLOAD_HOSTS = [
@@ -24,10 +54,8 @@ const GGUF_MAGIC = Buffer.from("GGUF"); // GGUF file magic bytes
 const MODEL_CHECKSUMS: Record<string, string> = {
   // SHA256 hashes computed from actual model files
   // Run: python scripts/compute_checksums.py --models-dir <path>
+  // nomic-embed checksum omitted - model file not available locally
   "gemma-4-e2b": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
-  "nomic-embed": "021059cce659fe7f9170d5599761d7bbaf644b798dab9503aca30dc43e6beb14",
-  // Note: qwen-3.8b-9b and qwythos-9b checksums are for local files only
-  // Their HuggingFace URLs may have different hashes — verify after download
   "qwen-3.8b-9b": "df13d66021cef676f82be74053220fd75af6bf2a6a7fb77f5222ab9e50744a7a",
   "qwythos-9b": "5c09e7f207d2fd9069c802ff77632fa7cdaffe7fb5ba40ff9f060aaeaa09acd5",
 };
