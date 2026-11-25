@@ -163,6 +163,14 @@ function runMigrations(db: Database.Database): void {
         embedding BLOB NOT NULL,
         model TEXT NOT NULL DEFAULT 'nomic-embed-text'
       );
+
+      CREATE TABLE IF NOT EXISTS translations_cache (
+        source_text TEXT NOT NULL,
+        target_lang TEXT NOT NULL,
+        translation TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (source_text, target_lang)
+      );
     `);
 
     // FTS5 sync triggers (external content table needs manual sync)

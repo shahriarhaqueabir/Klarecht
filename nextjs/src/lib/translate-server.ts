@@ -1,9 +1,9 @@
 /**
  * Server-side translation service for the German Law Vault.
  *
- * Provides bidirectional translation across all 9 supported languages using:
- * 1. Legal term mapping (fast path — no API call)
- * 2. LibreTranslate API (free, ~30 req/min on public instance)
+ * Provides translation using:
+ * 1. Legal term mapping (fast path - no API call)
+ * 2. Local Ollama model (no cloud fallback)
  * 3. Graceful fallback when translation is unavailable
  *
  * Language codes: de, en, tr, ar, fr, es, pl, uk, ru
@@ -11,6 +11,8 @@
 
 import type { AppLanguage } from "./types";
 import { z } from "zod";
+import { TRANSLATION_MODEL } from "./model-constants";
+import { createDb } from "./db";
 
 // ── LibreTranslate Language Code Mapping ──────────────────────────────────
 // LibreTranslate uses ISO 639-1 codes which match our AppLanguage type
@@ -28,8 +30,7 @@ const LIBRE_LANG_CODES: Record<string, string> = {
   ru: "ru",
 };
 
-const LIBRE_API_URL = "https://libretranslate.com/translate";
-const LIBRE_TIMEOUT_MS = 1500;
+// (LibreTranslate cloud fallback removed - local-only)
 
 // ── Ollama Translation ─────────────────────────────────────────────────────
 // Uses TranslateGemma:4b for high-quality DE↔EN translation
@@ -38,7 +39,7 @@ const LIBRE_TIMEOUT_MS = 1500;
 const OLLAMA_URL = "http://localhost:11434";
 const OLLAMA_TRANSLATE_TIMEOUT_MS = 3_000;
 const OLLAMA_PROBE_TIMEOUT_MS = 1_000;
-const TRANSLATE_MODEL = "translategemma:4b";
+// TRANSLATION_MODEL imported from ./model-constants
 
 // Language names for Ollama translation prompts
 const OLLAMA_LANG_NAMES: Record<string, string> = {
@@ -56,24 +57,26 @@ const OLLAMA_LANG_NAMES: Record<string, string> = {
 // ── Translation Result Cache ─────────────────────────────────────────────────
 // LRU-like cache: maps "text::targetLang" → translated string.
 // Prevents redundant translations of the same text within and across requests.
-const TRANSLATION_CACHE = new Map<string, string>();
-const CACHE_MAX = 500;
-
-function cacheKey(text: string, targetLang: string): string {
-  return `${text}::${targetLang}`;
+let _cacheDb: ReturnType<typeof createDb> | null = null;
+function getCacheDb() {
+  if (!_cacheDb) _cacheDb = createDb();
+  return _cacheDb;
 }
 
 function getCachedTranslation(
   text: string,
   targetLang: string,
 ): string | undefined {
-  // LRU: delete and re-set to move entry to end (most recently used)
-  const key = cacheKey(text, targetLang);
-  if (!TRANSLATION_CACHE.has(key)) return undefined;
-  const value = TRANSLATION_CACHE.get(key)!;
-  TRANSLATION_CACHE.delete(key);
-  TRANSLATION_CACHE.set(key, value);
-  return value;
+  try {
+    const row = getCacheDb()
+      .prepare(
+        "SELECT translation FROM translations_cache WHERE source_text = ? AND target_lang = ?",
+      )
+      .get(text, targetLang) as { translation: string } | undefined;
+    return row?.translation;
+  } catch {
+    return undefined;
+  }
 }
 
 function setCachedTranslation(
@@ -81,16 +84,23 @@ function setCachedTranslation(
   targetLang: string,
   result: string,
 ): void {
-  const key = cacheKey(text, targetLang);
-  // If key exists, delete first so re-insert goes to end (LRU)
-  if (TRANSLATION_CACHE.has(key)) {
-    TRANSLATION_CACHE.delete(key);
-  } else if (TRANSLATION_CACHE.size >= CACHE_MAX) {
-    // Evict oldest entry (Map preserves insertion order — first key is LRU)
-    const firstKey = TRANSLATION_CACHE.keys().next();
-    if (!firstKey.done) TRANSLATION_CACHE.delete(firstKey.value);
+  try {
+    getCacheDb()
+      .prepare(
+        "INSERT OR REPLACE INTO translations_cache (source_text, target_lang, translation) VALUES (?, ?, ?)",
+      )
+      .run(text, targetLang, result);
+  } catch {
+    // best-effort
   }
-  TRANSLATION_CACHE.set(key, result);
+}
+
+export function clearTranslationCache(): void {
+  try {
+    getCacheDb().prepare("DELETE FROM translations_cache").run();
+  } catch {
+    // best-effort
+  }
 }
 
 // Per-process cache: once we know Ollama is unreachable, skip it entirely.
@@ -159,7 +169,7 @@ ${targetLang === "en" ? "English" : "German"}:`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: TRANSLATE_MODEL,
+        model: TRANSLATION_MODEL,
         prompt,
         stream: false,
         options: {
@@ -531,9 +541,10 @@ const EN_DE_TERM_MAP: Record<string, string> = {
 function buildDeEnTermMap(): Record<string, string> {
   const map: Record<string, string> = {};
   for (const [en, de] of Object.entries(EN_DE_TERM_MAP)) {
+    const key = de.toLowerCase();
     // If multiple English terms map to the same German term, keep first
-    if (!map[de]) {
-      map[de] = en;
+    if (!map[key]) {
+      map[key] = en;
     }
   }
   return map;
@@ -623,7 +634,8 @@ const GERMAN_WORDS = new Set([
 function isLikelyGerman(query: string): boolean {
   const words = query.toLowerCase().split(/\s+/);
   if (words.length === 0) return false;
-  const germanWordCount = words.filter((w) => GERMAN_WORDS.has(w)).length;
+  const lowerGermanWords = new Set(Array.from(GERMAN_WORDS).map((w) => w.toLowerCase()));
+  const germanWordCount = words.filter((w) => lowerGermanWords.has(w)).length;
   return germanWordCount / words.length > 0.3;
 }
 
@@ -697,40 +709,6 @@ function findDeEnTermMatch(query: string): string | null {
 
 // ── LibreTranslate API Call ───────────────────────────────────────────────
 
-async function callLibreTranslate(
-  text: string,
-  source: string,
-  target: string,
-): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), LIBRE_TIMEOUT_MS);
-
-    const res = await fetch(LIBRE_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        q: text,
-        source,
-        target,
-        format: "text",
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const data = (await res.json()) as { translatedText: string };
-      if (data.translatedText && data.translatedText !== text) {
-        return data.translatedText;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 // ── Public API ────────────────────────────────────────────────────────────
 
 /**
@@ -763,12 +741,6 @@ export async function translateQueryToGerman(query: string): Promise<string> {
     return ollamaResult;
   }
 
-  // LibreTranslate fallback (auto-detect source language)
-  const apiResult = await callLibreTranslate(query, "auto", "de");
-  if (apiResult) {
-    console.log(`[Translate] LibreTranslate →DE: "${query}" → "${apiResult}"`);
-    return apiResult;
-  }
 
   // Final fallback: strip stop words and keep key English terms
   const STOP_WORDS = new Set([
@@ -890,7 +862,7 @@ export async function translateFromGerman(
 ): Promise<string> {
   if (!text.trim() || targetLanguage === "de") return text;
 
-  // Skip translation if text isn't actually German-like
+  // Skip translation if text isn't actually German-like:
   // (prevents wasting time trying to translate English category keys, boilerplate, etc.)
   if (!isLikelyGerman(text)) {
     return text;
@@ -926,26 +898,8 @@ export async function translateFromGerman(
     }
   }
 
-  // LibreTranslate: German → target language
-  const targetCode = LIBRE_LANG_CODES[targetLanguage];
-  if (targetCode) {
-    const apiResult = await callLibreTranslate(text, "de", targetCode);
-    if (apiResult) {
-      console.log(
-        `[Translate] LibreTranslate DE→${targetLanguage}: "${text.slice(0, 40)}..."`,
-      );
-      result = apiResult;
-      setCachedTranslation(text, targetLanguage, result);
-      return result;
-    }
-  }
-
-  console.log(
-    `[Translate] DE→${targetLanguage} unavailable for: "${text.slice(0, 40)}..."`,
-  );
-  result = text;
-  setCachedTranslation(text, targetLanguage, result);
-  return result;
+  // Do not cache failures, so a later model install can improve results.
+  return text;
 }
 
 /**
@@ -967,15 +921,6 @@ export async function translateText(
     return translateFromGerman(text, targetLanguage);
   }
 
-  // Generic path via LibreTranslate
-  const sourceCode =
-    sourceLanguage === "auto" ? "auto" : LIBRE_LANG_CODES[sourceLanguage];
-  const targetCode = LIBRE_LANG_CODES[targetLanguage];
-
-  if (sourceCode && targetCode) {
-    const apiResult = await callLibreTranslate(text, sourceCode, targetCode);
-    if (apiResult) return apiResult;
-  }
-
+  // No cloud fallback (local-only): return original text.
   return text;
 }

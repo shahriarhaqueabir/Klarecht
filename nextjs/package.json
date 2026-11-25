@@ -15,8 +15,6 @@
     "lint:knip": "knip"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
-    "@qdrant/js-client-rest": "^1.18.0",
     "@tanstack/react-query": "^5.101.0",
     "better-sqlite3": "^13.0.3",
     "date-fns": "^4.4.0",
@@ -55,7 +53,6 @@
     "knip": "^6.17.1",
     "msw": "^2.14.6",
     "prettier": "^3.8.4",
-    "supabase": "^2.108.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9"

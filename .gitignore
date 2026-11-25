@@ -350,3 +350,9 @@ nul
 data/*.db-wal
 data/*.db-shm
 data/*.db-journal
+
+# Private modules (secrets, adapters, config - never committed)
+private/
+private/secrets/
+private/adapters/
+private/config/
