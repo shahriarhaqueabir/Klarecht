@@ -163,6 +163,14 @@ flowchart LR
 | 🤖 AI        | Ollama (chat, embed, translate)      | 100% local            |
 | 🧪 Tests     | Vitest 4.1+                          | Fast, TS-native       |
 
+## 🛠️ Provisioning
+
+```bash
+# Prereqs: Node.js 20+, Python 3.10+ (for ingest scripts), Ollama
+ollama pull nomic-embed-text:latest
+ollama pull qwen2.5:1.5b-translate
+```
+
 ## 🚀 Quick start
 
 ```bash
@@ -194,13 +202,13 @@ python scripts/ingest_embeddings.py
 cd nextjs && npm run dev   # → http://localhost:3000
 ```
 
-## 📟 Commands
+## ⚡ Quick command reference
 
 ```bash
 cd nextjs
-npm run dev              # dev server → http://localhost:3000
-npx vitest run           # all tests (233 passing)
-npx tsc --noEmit         # type check (0 errors)
+npm run dev              # dev server -> http://localhost:3000
+npx vitest run           # tests
+npx tsc --noEmit         # type check
 npm run lint             # ESLint
 ```
 
