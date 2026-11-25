@@ -17,9 +17,7 @@ German Law Vault handles user data including encrypted AI provider API keys, aut
 Instead, report them privately using one of the following methods:
 
 1. **GitHub Private Vulnerability Reporting** (preferred):
-   Go to https://github.com/shahriarhaqueabir/AI-Assisted-German-Law/security/advisories/new
-
-2. **Email**: [shahriarhaqueabir@gmail.com](mailto:shahriarhaqueabir@gmail.com)
+   Go to https://github.com/shahriarhaqueabir/Klarecht/security/advisories/new
 
 You can expect an acknowledgement within 48 hours and a detailed response within 5 business days, including next steps and a target timeline for a fix.
 
