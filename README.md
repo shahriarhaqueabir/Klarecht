@@ -1,221 +1,266 @@
-# German Law Vault ⚖️ — Local Edition
+# Klarecht - German Law Vault (Local Edition)
 
-**6,000+ German Federal Laws — AI-Guided Legal Analysis & Semantic Search (100% Local)**
+<p align="center">
+  <img src="Klarecht.jpg" alt="Klarecht" width="400">
+</p>
+> **6,000+ German Federal Laws — AI-Guided Legal Analysis & Semantic Search,
+> 100% Local.** Everything runs on your machine: no cloud, no API keys, no data
+> leaves your computer. 🛡️
 
-German Law Vault provides a comprehensive search engine and AI-guided legal assistant for all German federal laws from [gesetze-im-internet.de](https://www.gesetze-im-internet.de/). Everything runs on your machine — no cloud services, no API keys, no data leaves your computer.
+[![CI](https://github.com/shahriarhaqueabir/german-law-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/shahriarhaqueabir/german-law-vault/actions/workflows/ci.yml)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-233%20passing-brightgreen)](#testing)
 
-## Screenshots
+---
 
-| Homepage                                    | Search Results                                          | AI Chat                             |
-| ------------------------------------------- | ------------------------------------------------------- | ----------------------------------- |
-| ![Homepage](assets/screenshot-home.png)     | ![Search Results](assets/screenshot-search-results.png) | ![Chat](assets/screenshot-chat.png) |
-| **Settings**                                | **Guidance**                                            | **Laws**                            |
-| ![Settings](assets/screenshot-settings.png) | ![Guidance](assets/screenshot-guidance.png)             | ![Laws](assets/screenshot-laws.png) |
+## Fun things you can do
 
-## Features
+- Search 6,000+ German federal laws in plain language - no legal degree required
+- Ask "what are my rights as a tenant?" and get an answer with citations
+- Find the weirdest, most obscure laws still on the books
 
-- 🔍 **Hybrid Search** — FTS5 (BM25 trigram) + Ollama embeddings across 6,000+ federal laws
-- 📚 **Know Your Rights Guides** — curated articles for common situations (police, tenancy, employment, consumer, traffic)
-- 🤖 **AI Chat** — ask legal questions, get answers with citations (powered by Ollama)
-- 📊 **AI Guidance Engine** — describe your situation, get 3-5 outcome paths with risk/cost estimates
-- 📝 **German Legal Document Templates** — Widerspruch, Mahnung, Kündigung, Einspruch, Klage
-- 🌐 **9-Language UI** — DE/EN/TR/AR/FR/ES/PL/UK/RU
-- 🔒 **100% Local** — Ollama + SQLite, no cloud dependencies, no credentials
+## 🎬 The story — why this exists
 
-## Quick Start
+German federal law is public, but searching it is painful: the official portal
+is slow, legal language is dense, and most "legal tech" tools send your
+situation to a cloud. German Law Vault puts 6,000+ federal laws on your machine
+with hybrid search (FTS5 + vector embeddings) and an AI assistant that answers
+with citations — all via Ollama. No credentials, no cloud, no data leaves. ⚖️
 
-### Prerequisites
+> 💡 **The one sentence that drove everything:** _Legal information should be
+> searchable, citable, and private._
 
-- Node.js 18+
-- Python 3.10+
-- [Ollama](https://ollama.com) installed and running
+---
 
-### Setup
+## 🔁 The feedback loop (zero → finished)
+
+```
+  1. 📥 INGEST    download + parse 6,000+ XML laws (one-time, ~20 min)
+  2. 🗄️  MIGRATE   laws.db → app DB (SQLite)
+  3. 🔍 INDEX     FTS5 trigram index + (optional) vector embeddings
+  4. 🌱 SEED      rights guides into the DB
+  5. 🔎 SEARCH    hybrid FTS5 (BM25) + Ollama vector search
+  6. 🤖 CHAT      RAG pipeline → answer with citations
+  7. 📊 GUIDANCE  describe situation → 3-5 outcome paths with risk/cost
+  8. 🔁 REPEAT    resumable embedding ingest, cached translations
+```
+
+> 🧠 **Secret of the loop:** embeddings are resumable and the FTS index works
+> even before embeddings finish. You get useful search on day one.
+
+---
+
+## 🏗️ Architecture — how the pieces talk
+
+```mermaid
+flowchart LR
+  Browser[🌐 Browser :3000] -- /api/* --> Next[⚙️ Next.js server]
+  Next --> DB[(🗄️ SQLite better-sqlite3)]
+  Next --> Ollama[🤖 Ollama :11434]
+  DB --> FTS[🔍 FTS5 trigram]
+  Ollama --> Chat[💬 Chat / Embed / Translate]
+  subgraph Data
+    DB
+    FTS
+  end
+```
+
+| Component     | Responsibility                       | Key location          |
+| ------------- | ------------------------------------ | --------------------- |
+| 🌐 Frontend   | Pages, i18n (9 langs), search UI     | `nextjs/src/app/`     |
+| ⚙️ API routes | Search, chat, guidance, templates    | `nextjs/src/app/api/` |
+| 🗄️ Database   | SQLite single file, FTS5, embeddings | `data/german-law.db`  |
+| 🤖 AI         | Ollama chat/embed/translate          | `localhost:11434`     |
+| 🐍 Pipeline   | Download/parse/migrate/index/seed    | `scripts/`            |
+
+---
+
+## 🏆 Good choices (and why they were good)
+
+1. **🔍 Hybrid search.** FTS5 trigram handles German compound words
+   ("Miete" → "Mieterhöhung", "Mietvertrag"); vector search adds semantic
+   recall. Both degrade gracefully.
+2. **🤖 Auto-detect models.** App queries Ollama and picks the best model per
+   role (chat, embed, translate). No manual config.
+3. **📦 Single-file SQLite.** Portable, backup-friendly, no server to manage.
+4. **🔒 No credentials.** No API keys, no auth, no secrets. Single user.
+5. **🌍 9-language UI.** DE/EN/TR/AR/FR/ES/PL/UK/RU with cached translation.
+6. **📄 Document templates.** Generate filled German legal documents
+   (Widerspruch, Mahnung, Kündigung, Einspruch, Klage).
+
+---
+
+## 📋 The playbook — recreate from zero
+
+### Phase 0 — Scope 🎯
+
+1. One sentence: _"Legal information should be searchable, citable, private."_
+2. Boundaries: 100% local, no cloud, no credentials.
+
+### Phase 1 — Skeleton 🦴
+
+3. Next.js 16 (App Router) + TypeScript strict + Tailwind 4.
+4. SQLite via better-sqlite3.
+
+### Phase 2 — Data pipeline 🐍
+
+5. Download 6,147 XML laws from gesetze-im-internet.de.
+6. Parse XML → SQLite (`laws.db`).
+7. Migrate to app schema (`data/german-law.db`).
+8. Rebuild FTS5 trigram index.
+9. Seed rights guides.
+10. (Optional, ~6h) Embed norms with Ollama (resumable).
+
+### Phase 3 — Search 🔍
+
+11. FTS5 BM25 trigram search.
+12. Vector search via nomic-embed-text.
+13. Hybrid ranking + result highlighting.
+
+### Phase 4 — AI features 🤖
+
+14. RAG chat with citations.
+15. AI guidance engine (situation → outcome paths with risk/cost).
+16. Translation with caching.
+17. Document template generation.
+
+### Phase 5 — Polish 🎨
+
+18. 9-language i18n.
+19. Bookmarks & case folders.
+20. System status dashboard.
+
+### Phase 6 — Ship 🚢
+
+21. `npm run dev` → `http://localhost:3000`.
+22. `npx vitest run` → 233 tests.
+
+---
+
+## ⚠️ Mistakes to avoid
+
+- 🚫 **Blocking on embeddings.** FTS works immediately; embeddings improve
+  recall over time. Don't gate search on full ingest.
+- 🚫 **Assuming Ollama is up.** Graceful degradation when daemon is down.
+- 🚫 **German stemming assumptions.** Trigram handles substrings, not
+  morphology. Consider query expansion.
+- 🚫 **Stale settings layout.** Cloud-era leftovers linger; audit after
+  migration.
+
+---
+
+## 🧰 Stack
+
+| Layer        | Technology                           | Why                   |
+| ------------ | ------------------------------------ | --------------------- |
+| 🌐 Framework | Next.js 16 (App Router)              | SSR + API routes      |
+| ⚛️ UI        | React 19, Tailwind CSS 4             | Modern, fast          |
+| 📝 Language  | TypeScript (strict)                  | Type safety           |
+| 🗄️ Database  | SQLite (better-sqlite3)              | Single file, portable |
+| 🔍 Search    | FTS5 (BM25 trigram) + Ollama vectors | Hybrid recall         |
+| 🤖 AI        | Ollama (chat, embed, translate)      | 100% local            |
+| 🧪 Tests     | Vitest 4.1+                          | Fast, TS-native       |
+
+## 🚀 Quick start
 
 ```bash
 # 1. Clone
 git clone https://github.com/<your-username>/German-Law-Vault.git
 cd German-Law-Vault
 
-# 2. Install Node dependencies
+# 2. Install
 cd nextjs && npm install
 
 # 3. Pull Ollama models
 ollama pull nomic-embed-text:latest
+ollama pull qwen2.5:1.5b-translate
 
 # 4. Configure
 cp .env.example .env.local
-# Edit .env.local with your Ollama URL and model names
 
-# 5. Download and ingest German laws (one-time, ~20 min)
+# 5. Download + ingest laws (one-time, ~20 min)
 cd .. && python scripts/download_de_laws.py
 python scripts/process_de_laws.py
 python scripts/migrate_to_app_db.py
 python scripts/rebuild_fts_trigram.py
-
-# 6. Seed rights guides
 python scripts/seed_rights_guides.py --db data/german-law.db --dir data/rights-guides
 
-# 7. (Optional) Run embedding ingest (one-time, ~6 hours)
+# 6. (Optional) Embed norms (~6 hours, resumable)
 python scripts/ingest_embeddings.py
 
-# 8. Start
-cd nextjs && npm run dev  # → http://localhost:3000
+# 7. Start
+cd nextjs && npm run dev   # → http://localhost:3000
 ```
 
-### Ollama Setup
-
-The app auto-detects available models from your Ollama instance. Recommended:
-
-- **Chat/Guidance**: Any 7B+ model (Qwythos 9B, Llama 3, Mistral, etc.)
-- **Embeddings**: `nomic-embed-text` (required for semantic search)
-- **Translation**: Any 1.5B+ model (Qwen 1.5B, Phi-3 Mini, etc.)
-
-If your models are in a non-default directory:
-
-```bash
-# Windows
-[System.Environment]::SetEnvironmentVariable("OLLAMA_MODELS", "E:\path\to\models", "User")
-# Then restart Ollama
-```
-
-## Tech Stack
-
-| Layer     | Technology                                             |
-| --------- | ------------------------------------------------------ |
-| Framework | Next.js 16 (App Router)                                |
-| UI        | React 19, Tailwind CSS 4                               |
-| Language  | TypeScript (strict)                                    |
-| Database  | SQLite (better-sqlite3)                                |
-| Search    | FTS5 (BM25 trigram) + Ollama nomic-embed-text (vector) |
-| AI        | Ollama (chat, embeddings, translation)                 |
-| Testing   | Vitest 4.1+                                            |
-
-## Commands
+## 📟 Commands
 
 ```bash
 cd nextjs
-npm run dev              # Start dev server → http://localhost:3000
-npx vitest run           # Run all tests (233 passing)
-npx tsc --noEmit         # Type check (0 errors)
+npm run dev              # dev server → http://localhost:3000
+npx vitest run           # all tests (233 passing)
+npx tsc --noEmit         # type check (0 errors)
 npm run lint             # ESLint
 ```
 
-## What Works ✅
+## 📊 What works ✅
 
-- **Search** — FTS5 trigram search finds German compound words ("Miete" matches "Mieterhöhung", "Mietvertrag", etc.). 6,147 laws, 107,864 norms indexed.
-- **AI Chat** — RAG pipeline retrieves relevant norms, Ollama answers with citations
-- **Translation** — Translate German legal text to 9 languages via Ollama (cached)
-- **AI Guidance** — Describe your situation, get 3-5 outcome paths with risk/cost analysis
-- **Document Templates** — Generate filled German legal documents (Widerspruch, Mahnung, etc.)
-- **Know Your Rights Guides** — 5 curated guides (police, rent, employment, consumer, traffic)
-- **Bookmarks & Folders** — Save laws to case folders with 8 uniform properties
-- **9-Language UI** — Full i18n support
-- **Auto-detect models** — App queries Ollama and picks best model per role
-- **System Status** — Shows DB stats, embedding progress, Ollama health
+- 🔍 **Search** — FTS5 trigram finds German compound words. 6,147 laws,
+  107,864 norms indexed.
+- 🤖 **AI Chat** — RAG pipeline with citations.
+- 🌐 **Translation** — 9 languages via Ollama (cached).
+- 📊 **AI Guidance** — situation → 3-5 outcome paths with risk/cost.
+- 📝 **Document Templates** — Widerspruch, Mahnung, Kündigung, Einspruch,
+  Klage.
+- 📚 **Know Your Rights Guides** — 5 curated guides.
+- 🔖 **Bookmarks & Folders** — case organization.
+- 🌐 **9-Language UI** — full i18n.
+- 🤖 **Auto-detect models** — best model per role.
+- 📈 **System Status** — DB stats, embedding progress, Ollama health.
 
-## What Needs Work 🔧
+## 🔧 What needs work
 
-### High Priority
+- **High:** embedding ingest (26,750 / 107,864 done), German stemming,
+  rights-guide legal accuracy, settings polish, onboarding wizard.
+- **Medium:** more rights guides, model management UI, error handling,
+  progress indicators.
+- **Low:** auto-pull models, export/backup, dark/light theme, keyboard
+  shortcuts.
 
-- **Embedding ingest** — 26,750 / 107,864 norms embedded (running in background, resumable). Semantic search improves as embeddings complete.
-- **German stemming** — FTS5 trigram handles substring matching but not morphological stemming. Consider trigram + Ollama query expansion.
-- **Rights guides legal accuracy** — 5 guides drafted, need review by someone familiar with German law
-- **Settings page polish** — still has some stale layout from cloud era
-- **Onboarding wizard** — needs updating for local-only setup
-
-### Medium Priority
-
-- **More rights guides** — family, immigration, healthcare, tax, neighbor disputes
-- **Model management UI** — show active model, allow switching, show VRAM usage
-- **Error handling** — graceful degradation when Ollama is down
-- **Progress indicators** — for embedding ingest, guidance generation
-- **README accuracy** — needs ongoing updates as features change
-
-### Low Priority
-
-- **Auto-pull models** — offer to pull missing models from the UI
-- **Export/backup** — backup SQLite DB, export bookmarks as JSON
-- **Dark/light theme** — currently dark only
-- **Keyboard shortcuts** — for search, chat, navigation
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────┐
-│  Browser (http://localhost:3000)                 │
-│  Next.js App Router (React 19, Tailwind 4)       │
-└──────────────┬───────────────────────────────────┘
-               │  /api/* (localhost, no CORS issues)
-┌──────────────▼───────────────────────────────────┐
-│  Next.js server process (Node)                   │
-│  ┌────────────────┐   ┌──────────────────────┐   │
-│  │  SQLite        │   │  Ollama client       │   │
-│  │  (better-      │   │  /api/chat           │   │
-│  │   sqlite3)     │   │  /api/embed          │   │
-│  │  FTS5 trigram  │   │  /api/tags           │   │
-│  └────────┬───────┘   └──────────┬───────────┘   │
-│           │                       │              │
-│  ┌────────┴───────┐   ┌──────────▼───────────┐   │
-│  │ data/german-   │   │  Ollama daemon       │   │
-│  │ law.db         │   │  (localhost:11434)    │   │
-│  │ (single file)  │   │  Chat + Embed +      │   │
-│  └────────────────┘   │  Translate models     │   │
-│                       └──────────────────────┘   │
-└──────────────────────────────────────────────────┘
-```
-
-- **No cloud services** — everything runs on your machine
-- **No auth** — single user, no login required
-- **No credentials** — no API keys, no encryption, no secrets
-
-## Project Structure
+## 📁 Project structure
 
 ```
 German-Law-Vault/
 ├── nextjs/                 # Next.js app
-│   ├── src/
-│   │   ├── app/           # Pages and API routes
-│   │   ├── components/    # React components
-│   │   ├── lib/           # Core logic (db, search, ollama, types)
-│   │   └── hooks/         # React hooks
-│   ├── .env.example       # Environment template
-│   └── package.json
-├── scripts/               # Python data pipeline
-│   ├── download_de_laws.py # Download laws from gesetze-im-internet.de
-│   ├── process_de_laws.py # Parse XML → SQLite (laws.db)
-│   ├── migrate_to_app_db.py # Migrate laws.db → data/german-law.db
-│   ├── rebuild_fts_trigram.py # Build FTS5 trigram index
-│   ├── seed_rights_guides.py # Seed rights guides into DB
-│   └── ingest_embeddings.py # Embed norms with Ollama (long-running)
-├── data/
-│   ├── german-law.db      # SQLite database (single file)
-│   └── rights-guides/     # Curated markdown guides
-├── docs/
-│   ├── superpowers/       # Design specs and plans
-│   └── decisions/         # Architecture decision records
-└── archive/               # Archived cloud-era code (Supabase)
+│   ├── src/app/            # Pages + API routes
+│   ├── src/components/     # React components
+│   ├── src/lib/            # Core logic (db, search, ollama, types)
+│   └── src/hooks/          # React hooks
+├── scripts/                # Python data pipeline
+├── data/                   # SQLite DB + rights guides
+├── docs/                   # Specs and ADRs
+└── archive/                # Archived cloud-era code (Supabase)
 ```
 
-## Data Pipeline
+## 📸 Screenshots
 
-```
-download_de_laws.py → de_federal_raw/ (6,147 XML files)
-    ↓
-process_de_laws.py → laws.db (6,147 laws, 107,864 norms)
-    ↓
-migrate_to_app_db.py → data/german-law.db (app schema)
-    ↓
-rebuild_fts_trigram.py → FTS5 trigram index
-    ↓
-seed_rights_guides.py → rights_guides table
-    ↓
-ingest_embeddings.py → norm_embeddings table (hours, resumable)
-```
+| View 1 | View 2 | View 3 |
+|---|---|---|
+| ![screenshot 1](docs/screenshots/1.png) | ![screenshot 2](docs/screenshots/2.png) | ![screenshot 3](docs/screenshots/3.png) |
 
-## License
+> Add your own screenshots under docs/screenshots/.
 
-Apache License 2.0 — See [LICENSE](LICENSE) for details.
+## 📌 TL;DR
+
+- **Problem:** slow, cloud-based German legal search with no privacy.
+- **Solution:** Next.js 16 + SQLite + Ollama: 6,000+ laws, hybrid FTS5+vector, 9-language UI.
+- **Why it is interesting:** shows how to build a fully local RAG app over a real public dataset.
+
+
+## 📜 License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ---
 
@@ -223,4 +268,3 @@ Apache License 2.0 — See [LICENSE](LICENSE) for details.
   <sub>Built with ❤️ for accessible German legal information</sub><br>
   <sub>⚖️ <em>Sub lege libertas</em> — Under the law, freedom</sub>
 </div>
-# Germa
