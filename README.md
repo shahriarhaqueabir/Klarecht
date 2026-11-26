@@ -8,7 +8,7 @@
 > 100% Local.** Everything runs on your machine: no cloud, no API keys, no data
 > leaves your computer. 🛡️
 
-[![CI](https://github.com/shahriarhaqueabir/german-law-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/shahriarhaqueabir/german-law-vault/actions/workflows/ci.yml)
+[![CI](https://github.com/shahriarhaqueabir/Klarecht/actions/workflows/ci.yml/badge.svg)](https://github.com/shahriarhaqueabir/Klarecht/actions/workflows/ci.yml)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -251,6 +251,11 @@ German-Law-Vault/
 ├── docs/                   # Specs and ADRs
 └── archive/                # Archived cloud-era code (Supabase)
 ```
+
+## 🗂️ Data provenance
+
+- `data/german-law.db` and the law corpus are generated from public German statutes via `scripts/download_de_laws.py`.
+- `data/bgb_eval.json` is a bundled evaluation set of German civil-law (BGB) question/answer examples collected from third-party legal Q&A pages, including links to dejure.org. It is included for offline evaluation only. Source terms and redistribution rights were not independently verified — review them before redistributing or commercializing this dataset.
 
 ## 📸 Screenshots
 

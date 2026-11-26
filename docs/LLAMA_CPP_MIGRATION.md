@@ -20,14 +20,14 @@ The following config changes have already been applied:
   - Added `LLAMA_MODEL=Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M`
   - Added `LLAMA_TRANSLATE_MODEL=Qwen2.5-1.5B-Instruct-Q4_K_M`
   - Added `LLAMA_EMBED_MODEL=bge-m3-Q5_K_M`
-  - Added `MODELS_DIR=E:\Projects\ai\models`
+  - Added `MODELS_DIR=<models directory>`
   - Legacy Ollama vars commented out
 
 Code still calls Ollama endpoints — migration of API routes is still needed.
 
 ## Target State
 - Use llama.cpp `llama-server` as the backend (OpenAI-compatible API)
-- Model: GGUF file from `E:\Projects\ai\models\`
+- Model: GGUF file from `<models directory>\`
 - Update Next.js API routes to call llama-server instead of Ollama
 
 ## Migration Steps
@@ -35,7 +35,7 @@ Code still calls Ollama endpoints — migration of API routes is still needed.
 ### Phase 1: llama-server Setup
 1. Create a startup script or systemd service to launch llama-server:
    ```powershell
-   llama-server -m "E:\Projects\ai\models\Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf" --port 18010 --host 127.0.0.1
+   llama-server -m "<models directory>\Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf" --port 18010 --host 127.0.0.1
    ```
 2. Or integrate server lifecycle into the Next.js app (spawn child process on startup)
 3. Add `LLAMA_SERVER_URL=http://127.0.0.1:18010` to `.env.local`
@@ -74,7 +74,7 @@ export async function chat(messages: {role: string, content: string}[], model?: 
 - Pass translation context as user message
 
 #### `/api/models/route.ts`
-- Instead of listing Ollama models, list available GGUF files in `E:\Projects\ai\models\`
+- Instead of listing Ollama models, list available GGUF files in `<models directory>\`
 - Or return a fixed model name
 
 #### `/api/diagnostics/route.ts`
@@ -116,8 +116,8 @@ export const TRANSLATION_MODEL = "Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M" as const
 - `.env.local` — add `LLAMA_SERVER_URL`
 
 ## Dependencies
-- llama.cpp v1.0.0 at `E:\Projects\tools\llama-b12359\` (on PATH)
-- At least one GGUF model in `E:\Projects\ai\models\`
+- llama.cpp v1.0.0 at `<llama.cpp install directory>` (on PATH)
+- At least one GGUF model in `<models directory>\`
 
 ## Estimated Effort
 - Phase 1-2: 2-3 hours
