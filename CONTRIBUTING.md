@@ -23,8 +23,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<your-username>/German-Law-Vault.git
-cd German-Law-Vault
+git clone https://github.com/<your-username>/Klarecht.git
+cd Klarecht
 
 # 2. Install Node dependencies
 cd nextjs && npm install

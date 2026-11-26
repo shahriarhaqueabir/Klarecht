@@ -177,7 +177,7 @@ ollama pull qwen2.5:1.5b-translate
 ```bash
 # 1. Clone
 git clone https://github.com/shahriarhaqueabir/Klarecht.git
-cd German-Law-Vault
+cd Klarecht
 
 # 2. Install
 cd nextjs && npm install
@@ -240,7 +240,7 @@ npm run lint             # ESLint
 ## 📁 Project structure
 
 ```
-German-Law-Vault/
+Klarecht/
 ├── nextjs/                 # Next.js app
 │   ├── src/app/            # Pages + API routes
 │   ├── src/components/     # React components
